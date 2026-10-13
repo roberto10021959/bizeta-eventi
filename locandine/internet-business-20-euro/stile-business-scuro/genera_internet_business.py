@@ -63,6 +63,10 @@ body {{ font-family: "Inter", sans-serif; color: #fff; background: #0b0b0c;
 .prezzo {{ font-family: "Inter Display", "Inter", sans-serif; font-weight: 900; color: {ROSSO};
   font-size: {150*s}px; line-height: .9; letter-spacing: -{6*s}px; margin: {4*s}px 0 {6*s}px }}
 .prezzo small {{ font-size: {72*s}px; letter-spacing: -{2*s}px }}
+.titoletto {{ font-size: {34*s}px; font-weight: 800; text-transform: uppercase; letter-spacing: {1*s}px;
+  line-height: 1.15 }}
+.spiega {{ font-size: {26*s}px; color: #cfcfcf; line-height: 1.3; margin-top: {4*s}px }}
+.spiega b {{ color: #fff }}
 .luce .prezzo {{ color: #ffc900 }}
 .icona {{ width: {120*s}px; height: {120*s}px; border-radius: 50%; flex: none;
   display: flex; align-items: center; justify-content: center; font-size: {64*s}px }}
@@ -88,7 +92,8 @@ body {{ font-family: "Inter", sans-serif; color: #fff; background: #0b0b0c;
   <div class="spazio"></div>
   <div class="riquadro">
     <div class="testi">
-      <div class="piccolo">Internet + SIM in Vodafone Business</div>
+      <div class="titoletto">Linea Internet illimitata</div>
+      <div class="spiega">se passi a <b>Vodafone Business</b> con la tua linea mobile</div>
       <div class="prezzo">20 <small>euro</small></div>
       <div class="piccolo">al mese, oltre IVA</div>
     </div>
