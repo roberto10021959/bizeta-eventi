@@ -9,7 +9,9 @@ Generazione come genera_flat.py: HTML -> Chromium (Playwright), tutti i formati.
 
     python genera_internet_business.py CARTELLA_LOGHI CARTELLA_USCITA
 """
-import asyncio, base64, mimetypes, pathlib, sys
+import asyncio, base64, io, mimetypes, pathlib, sys, urllib.parse
+
+import segno
 
 LOGHI = pathlib.Path(sys.argv[1])
 USCITA = pathlib.Path(sys.argv[2])
@@ -26,11 +28,23 @@ FW_VF = incorpora("Fastweb_+_Vodafone_logo orizzontale.png")
 BIZETA = incorpora("_bizeta_bianco_trasparente.png")
 WHATSAPP = incorpora("_whatsapp_icona.png")
 MODEM = incorpora("modem_scontornato.png")
+# link WhatsApp con messaggio gia' scritto: lo usano il QR della vetrina e il bottone del PDF
+LINK_WA = "https://wa.me/393491775024?text=" + urllib.parse.quote(
+    "Ciao, vorrei informazioni sulla fibra Business a 20€")
+
+
+def qr_code():
+    buf = io.BytesIO()
+    segno.make(LINK_WA, error="m").save(buf, kind="svg", scale=10, border=2, dark="#000", light="#fff")
+    return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+QR = qr_code()
 ROSSO = "#e60000"
 VERDE = "#25d366"
 
 
-def pagina(w, h):
+def pagina(w, h, con_qr=False):
     # misure pensate su 1080 di larghezza; nei formati meno slanciati comanda l'altezza
     s = min(w / 1080.0, h / 1640.0)
     alto = h / w                         # 1.25 post, 1.41 A4, 1.78 storia
@@ -72,8 +86,14 @@ body {{ font-family: "Inter", sans-serif; color: #fff; background: #0b0b0c;
   display: flex; align-items: center; justify-content: center; font-size: {64*s}px }}
 .sim {{ background: rgba(230,0,0,.16) }}
 .lampadina {{ background: rgba(255,201,0,.16) }}
+.contatti {{ display: flex; align-items: flex-end; gap: {30*s}px }}
+.contatti .sx {{ flex: 1 }}
+.qr {{ background: #fff; border-radius: {18*s}px; padding: {10*s}px {10*s}px {6*s}px; text-align: center;
+  color: #000; font-size: {17*s}px; font-weight: 700; line-height: 1.2 }}
+.qr img {{ width: {170*s}px; display: block }}
+a {{ color: inherit; text-decoration: none }}
 .whatsapp {{ align-self: flex-start; background: {VERDE}; border-radius: {16*s}px; margin-top: {30*s}px;
-  padding: {16*s}px {28*s}px; display: flex; align-items: center; gap: {16*s}px;
+  padding: {16*s}px {28*s}px; display: inline-flex; align-items: center; gap: {16*s}px;
   font-size: {32*s}px; font-weight: 700 }}
 .whatsapp img {{ height: {46*s}px }}
 .indirizzo {{ font-size: {23*s}px; color: #a8a8a8; margin-top: {26*s}px; padding-bottom: {16*s}px;
@@ -107,8 +127,10 @@ body {{ font-family: "Inter", sans-serif; color: #fff; background: #0b0b0c;
     </div>
     <div class="icona lampadina">&#128161;</div>
   </div>
-  <div class="whatsapp"><img src="{WHATSAPP}" alt="">Scrivici su WhatsApp&nbsp; 349 177 5024</div>
-  <div class="indirizzo">Vodafone Store Cannizzaro &middot; Via T. Cannizzaro 74, Messina</div>
+  <div class="contatti"><div class="sx">
+    <a class="whatsapp" href="{LINK_WA}"><img src="{WHATSAPP}" alt="">Scrivici su WhatsApp&nbsp; 349 177 5024</a>
+    <div class="indirizzo">Vodafone Store Cannizzaro &middot; Via T. Cannizzaro 74, Messina</div>
+  </div>{f'<div class="qr"><img src="{QR}" alt="">Inquadra e<br>scrivici</div>' if con_qr else ''}</div>
   <div class="loghi">
     <span class="pillola"><img src="{FW_VF}" alt="Fastweb + Vodafone"></span>
     <img class="bz" src="{BIZETA}" alt="Bi Zeta">
@@ -128,13 +150,18 @@ async def principale():
         b = await p.chromium.launch(executable_path=CHROMIUM)
         for suffisso, w, h in FORMATI:
             pg = await b.new_page(viewport={"width": w, "height": h}, device_scale_factor=1)
-            await pg.set_content(pagina(w, h), wait_until="load")
+            await pg.set_content(pagina(w, h, con_qr="A4" in suffisso), wait_until="load")
             await pg.wait_for_timeout(350)
             fuori = USCITA / f"INTERNET BUSINESS 20 EURO{suffisso} - ottobre 2026.png"
             await pg.screenshot(path=str(fuori))
             if "A4" in suffisso:
+                # il PDF va impaginato alla misura A4 in px CSS (794x1123), altrimenti esce su piu' pagine;
+                # testi, QR e bottone restano vettoriali e il bottone resta un link cliccabile
+                await pg.set_viewport_size({"width": 794, "height": 1123})
+                await pg.set_content(pagina(794, 1123, con_qr=True), wait_until="load")
+                await pg.wait_for_timeout(350)
                 await pg.pdf(path=str(fuori.with_suffix(".pdf")), width="210mm", height="297mm",
-                             print_background=True,
+                             print_background=True, page_ranges="1",
                              margin={"top": "0", "bottom": "0", "left": "0", "right": "0"})
             await pg.close()
             print(f" fatto {fuori.name} ({w}x{h})")
